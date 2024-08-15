@@ -1,26 +1,48 @@
 <!DOCTYPE html>
 <html>
+<head>
+    <title>Barcode Scanner</title>
+    <script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
+</head>
 <body>
-<form id="codeForm">
-  <input type="text" id="codeInput" placeholder="Enter code">
-  <button type="submit">Check Code</button>
-</form>
-<div id="result"></div>
+    <div id="scanner-container"></div>
+    <div id="result"></div>
 
-<script>
-document.getElementById('codeForm').addEventListener('submit', function(e) {
-  e.preventDefault();
-  var code = document.getElementById('codeInput').value;
-  var url = 'https://script.google.com/macros/s/AKfycbxDi53JCEog2JXX4aqoWBPDBawx5KrWzQhfc4oBxfa4ER_EgyIzuKAPpsKRIrWfEJNXgQ/exec?code=' + encodeURIComponent(code);
+    <script>
+        Quagga.init({
+            inputStream : {
+                name : "Live",
+                type : "LiveStream",
+                target: document.querySelector('#scanner-container')
+            },
+            decoder : {
+                readers : ["code_128_reader", "ean_reader", "ean_8_reader", "code_39_reader", "code_39_vin_reader", "codabar_reader", "upc_reader", "upc_e_reader", "i2of5_reader"]
+            }
+        }, function(err) {
+            if (err) {
+                console.log(err);
+                return
+            }
+            console.log("Initialization finished. Ready to start");
+            Quagga.start();
+        });
 
-  
-  fetch(url)
-    .then(response => response.text())
-    .then(data => {
-      document.getElementById('result').innerText = data;
-    })
-    .catch(error => console.error('Error:', error));
-});
-</script>
+        Quagga.onDetected(function(data) {
+            var code = data.codeResult.code;
+            document.getElementById('result').textContent = 'Detected barcode: ' + code;
+            checkCode(code);
+        });
+
+        function checkCode(code) {
+            var url = 'https://script.google.com/macros/s/AKfycbyMENjQIlpVOFWEYWj_lBSdp2pmzMkIGrM_Fnl-R5rINVEjVjykwXdOlL2aWS8BCDYDcA/exec?code=' + encodeURIComponent(code);
+            
+            fetch(url)
+                .then(response => response.text())
+                .then(data => {
+                    document.getElementById('result').innerText = data;
+                })
+                .catch(error => console.error('Error:', error));
+        }
+    </script>
 </body>
 </html>
