@@ -16,8 +16,8 @@
                 target: document.querySelector('#scanner-container')
             },
             locator: {
-                patchSize: 'medium',  // Adjust this based on your needs
-                halfSample: true      // Set to false if you have performance to spare for potentially increased accuracy
+                patchSize: 'small',  // Adjust this based on your needs
+                halfSample: false      // Set to false if you have performance to spare for potentially increased accuracy
             },
             decoder : {
                 readers : ["code_128_reader", "ean_reader", "ean_8_reader", "code_39_reader", "code_39_vin_reader", "codabar_reader", "upc_reader", "upc_e_reader", "i2of5_reader"]
