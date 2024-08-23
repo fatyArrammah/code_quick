@@ -44,35 +44,42 @@
                     constraints: {
                         width: { min: 640 },
                         height: { min: 480 },
-                        facingMode: "environment",
+                        facingMode: "environment", // use the back camera
                         aspectRatio: { min: 1, max: 2 }
                     }
                 },
                 locator: {
-                    patchSize: 'medium',
-                    halfSample: true
+                    patchSize: 'medium', // Options: 'x-small', 'small', 'medium', 'large', 'x-large'
+                    halfSample: true // Performance boost by downsampling
                 },
-                numOfWorkers: 2,
+                numOfWorkers: navigator.hardwareConcurrency || 2, // Dynamically set based on the CPU
+                frequency: 10, // Limits the frequency of the analyze() function
                 decoder: {
-                    readers: ["code_128_reader", "ean_reader", "ean_8_reader", "code_39_reader", "code_39_vin_reader", "codabar_reader", "upc_reader", "upc_e_reader", "i2of5_reader"]
+                    readers: [
+                        "code_128_reader", "ean_reader", "ean_8_reader",
+                        "code_39_reader", "upc_reader", "upc_e_reader"
+                    ]
                 },
-                locate: true
+                locate: true // Whether to try to locate the barcode in the image
             }, function(err) {
                 if (err) {
-                    console.log(err);
+                    console.error(err);
                     document.getElementById('result').textContent = 'Scanner initialization error: ' + err;
                     return;
                 }
-                console.log("Initialization finished. Ready to start");
                 Quagga.start();
                 scanning = true;
                 document.getElementById('start-button').style.display = 'none';
             });
 
             Quagga.onDetected(function(result) {
-                var code = result.codeResult.code;
-                stopScanner();
-                checkCode(code);
+                if (result.codeResult && result.codeResult.code) {
+                    var code = result.codeResult.code;
+                    stopScanner();
+                    document.getElementById('result').textContent = 'Detected Code: ' + code;
+                    document.getElementById('start-button').style.display = 'block';
+                    document.getElementById('start-button').textContent = 'Scan Again';
+                }
             });
         }
 
@@ -82,26 +89,6 @@
                 scanning = false;
                 document.getElementById('scanner-container').style.display = 'none';
             }
-        }
-
-        function checkCode(code) {
-            document.getElementById('result').textContent = 'Checking code: ' + code;
-            
-            var url = 'https://script.google.com/macros/s/AKfycbyMENjQIlpVOFWEYWj_lBSdp2pmzMkIGrM_Fnl-R5rINVEjVjykwXdOlL2aWS8BCDYDcA/exec?code=' + encodeURIComponent(code);
-            
-            fetch(url)
-                .then(response => response.text())
-                .then(data => {
-                    document.getElementById('result').innerHTML = 'Detected Code: ' + code + '<br><br>Result: ' + data;
-                    document.getElementById('start-button').style.display = 'block';
-                    document.getElementById('start-button').textContent = 'Scan Again';
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    document.getElementById('result').innerText = 'Error checking code: ' + error;
-                    document.getElementById('start-button').style.display = 'block';
-                    document.getElementById('start-button').textContent = 'Try Again';
-                });
         }
 
         document.getElementById('start-button').addEventListener('click', function() {
