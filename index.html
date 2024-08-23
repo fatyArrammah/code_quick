@@ -11,8 +11,19 @@
             max-width: 640px;
             height: 480px;
             margin: 0 auto;
+            position: relative;
         }
-        #result {
+        #scanner-container canvas {
+            position: absolute;
+            left: 0;
+            top: 0;
+        }
+        #scanner-container canvas.drawingBuffer {
+            position: absolute;
+            left: 0;
+            top: 0;
+        }
+        #result, #diagnostics {
             margin-top: 20px;
             padding: 10px;
             background-color: #f0f0f0;
@@ -22,10 +33,13 @@
 <body>
     <div id="scanner-container"></div>
     <div id="result"></div>
-    <button id="start-stop">Start/Stop Scanner</button>
+    <div id="diagnostics"></div>
+    <button id="start-stop">Start Scanner</button>
 
     <script>
         let scanning = false;
+        let detectionAttempts = 0;
+        let successfulReads = 0;
 
         function startScanner() {
             Quagga.init({
@@ -41,12 +55,14 @@
                     }
                 },
                 locator: {
-                    patchSize: 'large',
-                    halfSample: false
+                    patchSize: 'medium',
+                    halfSample: true
                 },
+                numOfWorkers: 2,
                 decoder: {
                     readers: ["code_128_reader", "ean_reader", "ean_8_reader", "code_39_reader", "code_39_vin_reader", "codabar_reader", "upc_reader", "upc_e_reader", "i2of5_reader"]
-                }
+                },
+                locate: true
             }, function(err) {
                 if (err) {
                     console.log(err);
@@ -56,11 +72,40 @@
                 console.log("Initialization finished. Ready to start");
                 Quagga.start();
                 scanning = true;
+                document.getElementById('start-stop').textContent = 'Stop Scanner';
             });
 
-            Quagga.onDetected(function(data) {
-                var code = data.codeResult.code;
+            Quagga.onProcessed(function(result) {
+                var drawingCtx = Quagga.canvas.ctx.overlay,
+                    drawingCanvas = Quagga.canvas.dom.overlay;
+
+                if (result) {
+                    detectionAttempts++;
+                    if (result.boxes) {
+                        drawingCtx.clearRect(0, 0, parseInt(drawingCanvas.getAttribute("width")), parseInt(drawingCanvas.getAttribute("height")));
+                        result.boxes.filter(function (box) {
+                            return box !== result.box;
+                        }).forEach(function (box) {
+                            Quagga.ImageDebug.drawPath(box, {x: 0, y: 1}, drawingCtx, {color: "green", lineWidth: 2});
+                        });
+                    }
+
+                    if (result.box) {
+                        Quagga.ImageDebug.drawPath(result.box, {x: 0, y: 1}, drawingCtx, {color: "#00F", lineWidth: 2});
+                    }
+
+                    if (result.codeResult && result.codeResult.code) {
+                        Quagga.ImageDebug.drawPath(result.line, {x: 'x', y: 'y'}, drawingCtx, {color: 'red', lineWidth: 3});
+                    }
+                }
+                updateDiagnostics();
+            });
+
+            Quagga.onDetected(function(result) {
+                var code = result.codeResult.code;
                 document.getElementById('result').textContent = 'Detected barcode: ' + code;
+                successfulReads++;
+                updateDiagnostics();
                 checkCode(code);
             });
         }
@@ -68,6 +113,7 @@
         function stopScanner() {
             Quagga.stop();
             scanning = false;
+            document.getElementById('start-stop').textContent = 'Start Scanner';
         }
 
         function checkCode(code) {
@@ -84,13 +130,19 @@
                 });
         }
 
+        function updateDiagnostics() {
+            document.getElementById('diagnostics').innerHTML = `
+                Detection attempts: ${detectionAttempts}<br>
+                Successful reads: ${successfulReads}<br>
+                Success rate: ${((successfulReads / detectionAttempts) * 100).toFixed(2)}%
+            `;
+        }
+
         document.getElementById('start-stop').addEventListener('click', function() {
             if (scanning) {
                 stopScanner();
-                this.textContent = 'Start Scanner';
             } else {
                 startScanner();
-                this.textContent = 'Stop Scanner';
             }
         });
     </script>
