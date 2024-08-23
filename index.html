@@ -11,35 +11,29 @@
             max-width: 640px;
             height: 480px;
             margin: 0 auto;
-            position: relative;
         }
-        #scanner-container canvas {
-            position: absolute;
-            left: 0;
-            top: 0;
-        }
-        #scanner-container canvas.drawingBuffer {
-            position: absolute;
-            left: 0;
-            top: 0;
-        }
-        #result, #diagnostics {
+        #result {
             margin-top: 20px;
             padding: 10px;
             background-color: #f0f0f0;
+            font-size: 18px;
+            text-align: center;
+        }
+        #start-button {
+            display: block;
+            margin: 20px auto;
+            padding: 10px 20px;
+            font-size: 16px;
         }
     </style>
 </head>
 <body>
     <div id="scanner-container"></div>
     <div id="result"></div>
-    <div id="diagnostics"></div>
-    <button id="start-stop">Start Scanner</button>
+    <button id="start-button">Start Scanner</button>
 
     <script>
         let scanning = false;
-        let detectionAttempts = 0;
-        let successfulReads = 0;
 
         function startScanner() {
             Quagga.init({
@@ -72,76 +66,48 @@
                 console.log("Initialization finished. Ready to start");
                 Quagga.start();
                 scanning = true;
-                document.getElementById('start-stop').textContent = 'Stop Scanner';
-            });
-
-            Quagga.onProcessed(function(result) {
-                var drawingCtx = Quagga.canvas.ctx.overlay,
-                    drawingCanvas = Quagga.canvas.dom.overlay;
-
-                if (result) {
-                    detectionAttempts++;
-                    if (result.boxes) {
-                        drawingCtx.clearRect(0, 0, parseInt(drawingCanvas.getAttribute("width")), parseInt(drawingCanvas.getAttribute("height")));
-                        result.boxes.filter(function (box) {
-                            return box !== result.box;
-                        }).forEach(function (box) {
-                            Quagga.ImageDebug.drawPath(box, {x: 0, y: 1}, drawingCtx, {color: "green", lineWidth: 2});
-                        });
-                    }
-
-                    if (result.box) {
-                        Quagga.ImageDebug.drawPath(result.box, {x: 0, y: 1}, drawingCtx, {color: "#00F", lineWidth: 2});
-                    }
-
-                    if (result.codeResult && result.codeResult.code) {
-                        Quagga.ImageDebug.drawPath(result.line, {x: 'x', y: 'y'}, drawingCtx, {color: 'red', lineWidth: 3});
-                    }
-                }
-                updateDiagnostics();
+                document.getElementById('start-button').style.display = 'none';
             });
 
             Quagga.onDetected(function(result) {
                 var code = result.codeResult.code;
-                document.getElementById('result').textContent = 'Detected barcode: ' + code;
-                successfulReads++;
-                updateDiagnostics();
+                stopScanner();
                 checkCode(code);
             });
         }
 
         function stopScanner() {
-            Quagga.stop();
-            scanning = false;
-            document.getElementById('start-stop').textContent = 'Start Scanner';
+            if (scanning) {
+                Quagga.stop();
+                scanning = false;
+                document.getElementById('scanner-container').style.display = 'none';
+            }
         }
 
         function checkCode(code) {
+            document.getElementById('result').textContent = 'Checking code: ' + code;
+            
             var url = 'https://script.google.com/macros/s/AKfycbyMENjQIlpVOFWEYWj_lBSdp2pmzMkIGrM_Fnl-R5rINVEjVjykwXdOlL2aWS8BCDYDcA/exec?code=' + encodeURIComponent(code);
             
             fetch(url)
                 .then(response => response.text())
                 .then(data => {
-                    document.getElementById('result').innerText = data;
+                    document.getElementById('result').innerHTML = 'Detected Code: ' + code + '<br><br>Result: ' + data;
+                    document.getElementById('start-button').style.display = 'block';
+                    document.getElementById('start-button').textContent = 'Scan Again';
                 })
                 .catch(error => {
                     console.error('Error:', error);
                     document.getElementById('result').innerText = 'Error checking code: ' + error;
+                    document.getElementById('start-button').style.display = 'block';
+                    document.getElementById('start-button').textContent = 'Try Again';
                 });
         }
 
-        function updateDiagnostics() {
-            document.getElementById('diagnostics').innerHTML = `
-                Detection attempts: ${detectionAttempts}<br>
-                Successful reads: ${successfulReads}<br>
-                Success rate: ${((successfulReads / detectionAttempts) * 100).toFixed(2)}%
-            `;
-        }
-
-        document.getElementById('start-stop').addEventListener('click', function() {
-            if (scanning) {
-                stopScanner();
-            } else {
+        document.getElementById('start-button').addEventListener('click', function() {
+            if (!scanning) {
+                document.getElementById('scanner-container').style.display = 'block';
+                document.getElementById('result').textContent = '';
                 startScanner();
             }
         });
