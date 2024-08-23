@@ -1,52 +1,74 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Barcode Scanner</title>
     <script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
+    <style>
+        #scanner-container {
+            width: 100%;
+            max-width: 640px;
+            height: 480px;
+            margin: 0 auto;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f0f0f0;
+        }
+    </style>
 </head>
 <body>
     <div id="scanner-container"></div>
     <div id="result"></div>
+    <button id="start-stop">Start/Stop Scanner</button>
 
     <script>
-        Quagga.init({
-            //inputStream : {
-                //name : "Live",
-                //type : "LiveStream",
-                //target: document.querySelector('#scanner-container')
-            //}
+        let scanning = false;
 
-            inputStream: {
-                type : "LiveStream",
-                constraints: {
-                    width: {min: 640},
-                    height: {min: 480},
-                    facingMode: "environment",
-                    aspectRatio: {min: 1, max: 2}
+        function startScanner() {
+            Quagga.init({
+                inputStream: {
+                    name: "Live",
+                    type: "LiveStream",
+                    target: document.querySelector('#scanner-container'),
+                    constraints: {
+                        width: { min: 640 },
+                        height: { min: 480 },
+                        facingMode: "environment",
+                        aspectRatio: { min: 1, max: 2 }
+                    }
+                },
+                locator: {
+                    patchSize: 'large',
+                    halfSample: false
+                },
+                decoder: {
+                    readers: ["code_128_reader", "ean_reader", "ean_8_reader", "code_39_reader", "code_39_vin_reader", "codabar_reader", "upc_reader", "upc_e_reader", "i2of5_reader"]
                 }
-            }
-            ,
-            locator: {
-                patchSize: 'large',  // Adjust this based on your needs
-                halfSample: false      // Set to false if you have performance to spare for potentially increased accuracy
-            },
-            decoder : {
-                readers : ["code_128_reader", "ean_reader", "ean_8_reader", "code_39_reader", "code_39_vin_reader", "codabar_reader", "upc_reader", "upc_e_reader", "i2of5_reader"]
-            }
-                }, function(err) {
-            if (err) {
-                console.log(err);
-                return
-            }
-            console.log("Initialization finished. Ready to start");
-            Quagga.start();
-        });
+            }, function(err) {
+                if (err) {
+                    console.log(err);
+                    document.getElementById('result').textContent = 'Scanner initialization error: ' + err;
+                    return;
+                }
+                console.log("Initialization finished. Ready to start");
+                Quagga.start();
+                scanning = true;
+            });
 
-        Quagga.onDetected(function(data) {
-            var code = data.codeResult.code;
-            document.getElementById('result').textContent = 'Detected barcode: ' + code;
-            checkCode(code);
-        });
+            Quagga.onDetected(function(data) {
+                var code = data.codeResult.code;
+                document.getElementById('result').textContent = 'Detected barcode: ' + code;
+                checkCode(code);
+            });
+        }
+
+        function stopScanner() {
+            Quagga.stop();
+            scanning = false;
+        }
 
         function checkCode(code) {
             var url = 'https://script.google.com/macros/s/AKfycbyMENjQIlpVOFWEYWj_lBSdp2pmzMkIGrM_Fnl-R5rINVEjVjykwXdOlL2aWS8BCDYDcA/exec?code=' + encodeURIComponent(code);
@@ -56,9 +78,21 @@
                 .then(data => {
                     document.getElementById('result').innerText = data;
                 })
-                .catch(error => console.error('Error:', error));
+                .catch(error => {
+                    console.error('Error:', error);
+                    document.getElementById('result').innerText = 'Error checking code: ' + error;
+                });
         }
 
+        document.getElementById('start-stop').addEventListener('click', function() {
+            if (scanning) {
+                stopScanner();
+                this.textContent = 'Start Scanner';
+            } else {
+                startScanner();
+                this.textContent = 'Stop Scanner';
+            }
+        });
     </script>
 </body>
 </html>
